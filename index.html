@@ -1,0 +1,1177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Trim Crew Audits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: floor-clipboard tool. Sticky header with three views; audit sheet is a wide grid of lbs/hr cells, summaries above detail. */
+:root {
+  --paper: #eef2ef;
+  --card: #ffffff;
+  --ink: #1b2622;
+  --muted: #5c6b65;
+  --line: #d3dcd7;
+  --accent: #a8620c;
+  --accent-ink: #ffffff;
+  --accent-soft: #f6e8d4;
+  --trim: #2d7350;
+  --trim-soft: #dcefe4;
+  --buck: #3c5d8c;
+  --buck-soft: #dde6f3;
+  --bad: #ad3528;
+  --bad-soft: #f7dfdb;
+  --good: #2d7350;
+  --field: #f8faf9;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111714; --card: #19211d; --ink: #e2eae6; --muted: #92a39b; --line: #2b3732;
+    --accent: #e09d45; --accent-ink: #1b1306; --accent-soft: #3a2a14;
+    --trim: #6cc196; --trim-soft: #1d3428; --buck: #92b2e4; --buck-soft: #1e2a3d;
+    --bad: #ee8174; --bad-soft: #3d201c; --good: #6cc196; --field: #141b18;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111714; --card: #19211d; --ink: #e2eae6; --muted: #92a39b; --line: #2b3732;
+  --accent: #e09d45; --accent-ink: #1b1306; --accent-soft: #3a2a14;
+  --trim: #6cc196; --trim-soft: #1d3428; --buck: #92b2e4; --buck-soft: #1e2a3d;
+  --bad: #ee8174; --bad-soft: #3d201c; --good: #6cc196; --field: #141b18;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--card); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--card); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding-block: 10px; }
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.brand h1 { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: .02em; text-transform: uppercase; margin: 0; line-height: 1; }
+.brand span { font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+nav.tabs { display: flex; gap: 4px; }
+nav.tabs button { font: 600 14px var(--body); background: none; border: 0; color: var(--muted); padding: 8px 12px; border-radius: 6px; cursor: pointer; }
+nav.tabs button[aria-current="page"] { background: var(--ink); color: var(--card); }
+nav.tabs button:hover:not([aria-current="page"]) { background: var(--field); color: var(--ink); }
+.status { font: 500 12px var(--mono); color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.status i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.status[data-s="saved"] i { background: var(--good); }
+.status[data-s="saving"] i { background: var(--accent); }
+.status[data-s="error"] i, .status[data-s="offline"] i { background: var(--bad); }
+
+main { padding-block: 20px 60px; display: grid; gap: 20px; }
+h2 { font-family: var(--display); font-weight: 700; font-size: 22px; text-transform: uppercase; letter-spacing: .03em; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--display); font-weight: 600; font-size: 18px; text-transform: uppercase; letter-spacing: .04em; margin: 0; }
+.label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.spread { justify-content: space-between; }
+
+button.btn, .btn { font: 600 14px var(--body); border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 8px 14px; border-radius: 7px; cursor: pointer; min-height: 38px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.small { padding: 4px 10px; min-height: 30px; font-size: 13px; }
+.btn.danger { color: var(--bad); }
+.btn.confirm { background: var(--bad); color: var(--card); border-color: var(--bad); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type="text"], input[type="date"], select, input.rate { font: 500 15px var(--body); color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; min-height: 38px; }
+input.rate { font-family: var(--mono); width: 5.6em; text-align: right; font-variant-numeric: tabular-nums; font-size: 16px; }
+input.rate:disabled { opacity: .35; text-decoration: line-through; }
+input.rate.filled { background: var(--card); border-color: var(--muted); }
+
+.datebar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.datebar .dow { font-family: var(--display); font-size: 22px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; min-width: 9ch; }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.chip.trim { background: var(--trim-soft); color: var(--trim); }
+.chip.buck { background: var(--buck-soft); color: var(--buck); }
+.chip.fast { background: var(--trim-soft); color: var(--good); }
+.chip.slow { background: var(--bad-soft); color: var(--bad); }
+.chip.out { background: var(--accent-soft); color: var(--accent); }
+
+.sumgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.sumcard { border: 1px solid var(--line); border-radius: 9px; padding: 14px; display: grid; gap: 12px; border-top: 4px solid var(--trim); min-width: 0; }
+.sumcard.buck { border-top-color: var(--buck); }
+.slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.slot { display: grid; gap: 2px; }
+.slot b { font: 500 22px var(--mono); font-variant-numeric: tabular-nums; }
+.slot.day b { color: var(--accent); }
+.who { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px; }
+.who div { display: grid; gap: 2px; min-width: 0; }
+.who strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 9px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); background: var(--field); }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+td.name { font-weight: 600; position: sticky; left: 0; background: var(--card); }
+th.name { position: sticky; left: 0; z-index: 1; }
+tr.left td.name { color: var(--muted); }
+td.name .edit { margin-left: 6px; }
+form.rename { display: flex; gap: 6px; align-items: center; }
+form.rename input { width: 170px; }
+.grouphead td { background: var(--field); font-family: var(--display); font-size: 16px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+.grouphead.trim td { color: var(--trim); }
+.grouphead.buck td { color: var(--buck); }
+.slotsub { display: block; font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 11px; }
+
+/* names run down each column, then on to the next one, A to Z */
+.builder { columns: 190px; column-gap: 6px; }
+.pick { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; background: var(--field); min-width: 0; break-inside: avoid; margin-bottom: 6px; }
+.sheethead { gap: 10px 14px; }
+.liveline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; }
+.liveline i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); display: inline-block; }
+@media (prefers-reduced-motion: no-preference) { .liveline i { animation: pulse 2s ease-in-out infinite; } }
+@keyframes pulse { 50% { opacity: .35; } }
+.unitswitch { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.unitswitch button { font: 600 13px var(--body); border: 0; background: var(--card); color: var(--muted); padding: 6px 12px; min-height: 30px; cursor: pointer; }
+.unitswitch button + button { border-left: 1px solid var(--line); }
+.unitswitch button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+.pick input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+.pick span.n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.pick.on { background: var(--card); border-color: var(--accent); }
+.pick.locked { cursor: default; }
+.cell { display: inline-flex; align-items: center; gap: 6px; }
+.rt { font: 600 14px var(--mono); width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: 5px; border: 1px solid transparent; padding: 0; cursor: pointer; flex: none; }
+span.rt { cursor: default; width: 20px; height: 20px; }
+.rt.trim { background: var(--trim-soft); color: var(--trim); }
+.rt.buck { background: var(--buck-soft); color: var(--buck); }
+button.rt:hover { border-color: currentColor; }
+.btn.oncrew { background: var(--trim-soft); color: var(--trim); border-color: var(--trim); }
+.btn.oncrew:disabled { opacity: .8; }
+.crewbar { padding: 10px 12px; border-radius: 8px; background: var(--field); }
+
+.empty { border: 2px dashed var(--line); border-radius: 10px; padding: 28px 20px; text-align: center; display: grid; gap: 8px; justify-items: center; color: var(--muted); }
+.empty strong { color: var(--ink); font-size: 16px; }
+.msg { font-size: 13px; }
+.msg.err { color: var(--bad); }
+
+.bars { display: grid; gap: 8px; }
+.bar { display: grid; grid-template-columns: 70px 1fr 60px; align-items: center; gap: 10px; font-size: 13px; }
+.bar .track { height: 14px; background: var(--field); border-radius: 3px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--trim); border-radius: 3px; }
+.buck .bar .fill { background: var(--buck); }
+.insight { font-size: 14px; padding: 10px 12px; border-radius: 7px; background: var(--accent-soft); }
+.kpis { display: flex; flex-wrap: wrap; gap: 24px; }
+.kpis div { display: grid; gap: 2px; }
+.kpis b { font: 500 26px var(--mono); }
+.chart svg { width: 100%; height: auto; display: block; }
+.legend { display: flex; gap: 16px; font-size: 13px; }
+.legend i { display: inline-block; width: 12px; height: 3px; vertical-align: middle; margin-right: 6px; }
+a.lnk, button.lnk { color: var(--ink); background: none; border: 0; padding: 0; font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+button.lnk:hover { text-decoration-color: var(--accent); }
+.note { font-size: 13px; color: var(--muted); }
+@media (max-width: 560px) {
+  .brand span { display: none; }
+  .slots { grid-template-columns: repeat(2, 1fr); }
+  nav.tabs button { padding: 8px 9px; }
+}
+@media (prefers-reduced-motion: no-preference) { .fill { transition: width .3s; } }
+.pin { max-width: 420px; margin: 40px auto 0; text-align: center; justify-items: center; }
+.pin input { font: 500 24px var(--mono); text-align: center; letter-spacing: .3em; width: 100%; max-width: 240px; }
+.pin form { display: grid; gap: 10px; justify-items: center; width: 100%; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><h1>Crew Audits</h1><span>Trim &amp; buck audits</span></div>
+    <nav class="tabs" aria-label="Views">
+      <button id="tab-audit" data-view="audit">Audit sheet</button>
+      <button id="tab-crew" data-view="crew">Roster</button>
+      <button id="tab-reports" data-view="reports">Reports</button>
+    </nav>
+    <div class="status" id="status" data-s="loading"><i></i><span id="statusText">Connecting…</span></div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <div class="empty"><strong>Loading crew data…</strong><span>Audit sheets, roster and reports appear here once the data store answers.</span></div>
+</main>
+
+<script>
+const SLOTS = [
+  { k: "b1", label: "Break 1", sub: "hr before 1st break" },
+  { k: "lunch", label: "Lunch", sub: "hr before lunch" },
+  { k: "b2", label: "Break 2", sub: "hr before 2nd break" },
+];
+const ROLES = { trim: "Hand trim", buck: "Bucking" };
+const LEFT = { "": "Stayed", b1: "Before Break 1", lunch: "Before Lunch", b2: "Before Break 2" };
+
+const S = {
+  view: ["audit", "crew", "reports"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "audit",
+  date: iso(new Date()),
+  workers: {},      // id -> {name, role, active, createdAt}
+  days: {},         // date -> {date, crew:{id:{role, roles?:{b1,lunch,b2}, order, lbs:{b1,lunch,b2}, leftBefore}}}
+  loaded: { workers: false, days: false },
+  pin: "",
+  unit: (() => { try { return localStorage.getItem("laborUnit") === "g" ? "g" : "lbs"; } catch (e) { return "lbs"; } })(),
+  saveLabel: null,
+  relayReady: false,
+  canWrite: true,
+  pending: new Map(),    // date -> Set of worker ids changed on this device and not saved yet
+  inflight: null,        // {date, ids} while a save is on its way
+  workerPending: new Set(),
+  showBuilder: null,
+  range: "1",          // Reports open on today
+  selWorker: null,
+  addMsg: "",
+  rosterMsg: "",
+  armed: null,
+  renderQueued: false,
+};
+
+/* ---------- helpers ---------- */
+function pad(n) { return String(n).padStart(2, "0"); }
+function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+function parseIso(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
+function shift(s, n) { const d = parseIso(s); d.setDate(d.getDate() + n); return iso(d); }
+function fmtDate(s, opts) { return parseIso(s).toLocaleDateString(undefined, opts || { month: "short", day: "numeric" }); }
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+const G_PER_LB = 454;
+// every rate is stored in lbs/hr; the switch only changes what's shown and typed
+// Reports always show lbs/hr; the switch applies everywhere else
+function shownUnit() { return S.view === "reports" ? "lbs" : S.unit; }
+function f2(n) { return n == null || isNaN(n) ? "—" : shownUnit() === "g" ? String(Math.round(n * G_PER_LB)) : n.toFixed(2); }
+function U() { return shownUnit() === "g" ? "g/hr" : "lbs/hr"; }
+function toInput(lbs) { return S.unit === "g" ? String(Math.round(lbs * G_PER_LB)) : lbs.toFixed(2); }
+function fromInput(n) { return S.unit === "g" ? Math.round(n / G_PER_LB * 10000) / 10000 : n; }
+function mean(a) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; }
+function nameOf(id) { return S.workers[id]?.name || "Unknown"; }
+// A to Z, ignoring capital letters and accents
+function byName(a, b) { return a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }); }
+function slotIdx(k) { return SLOTS.findIndex(s => s.k === k); }
+function counts(entry, slotK) {
+  // a slot counts unless the worker left before it
+  if (!entry.leftBefore) return true;
+  return slotIdx(slotK) < slotIdx(entry.leftBefore);
+}
+function rateOf(entry, k) {
+  const v = entry.lbs?.[k];
+  return typeof v === "number" && isFinite(v) && counts(entry, k) ? v : null;
+}
+// role for one audit: per-audit override if they switched mid-day, else their role for the day
+function slotRole(entry, k) { return entry.roles?.[k] || entry.role; }
+function isMixed(entry) { return SLOTS.some(s => slotRole(entry, s.k) !== entry.role); }
+function entryAvg(entry, role) { return mean(SLOTS.filter(s => !role || slotRole(entry, s.k) === role).map(s => rateOf(entry, s.k)).filter(v => v != null)); }
+function avgCell(entry) {
+  if (!isMixed(entry)) return f2(entryAvg(entry));
+  return Object.keys(ROLES).map(r => `<span style="color:var(--${r})">${r === "trim" ? "T" : "B"} ${f2(entryAvg(entry, r))}</span>`).join(" · ");
+}
+/* switch role from this audit onward; earlier audits keep what they were */
+function switchFrom(entry, k) {
+  const i = slotIdx(k);
+  const to = slotRole(entry, k) === "trim" ? "buck" : "trim";
+  const roles = {};
+  SLOTS.forEach((s, j) => { roles[s.k] = j < i ? slotRole(entry, s.k) : to; });
+  if (SLOTS.every(s => roles[s.k] === entry.role)) delete entry.roles; else entry.roles = roles;
+}
+function hasRates(entry) { return SLOTS.some(s => typeof entry.lbs?.[s.k] === "number"); }
+function getDay(date) { return S.days[date] || { date, crew: {} }; }
+function ensureDay(date) { if (!S.days[date]) S.days[date] = { date, crew: {} }; return S.days[date]; }
+function crewOf(day, role) {
+  return Object.entries(day.crew || {}).filter(([, e]) => e.role === role)
+    .sort((a, b) => byName(nameOf(a[0]), nameOf(b[0])));
+}
+
+/* every counted audit as a flat record */
+function records(filterFn) {
+  const out = [];
+  for (const day of Object.values(S.days)) {
+    if (filterFn && !filterFn(day.date)) continue;
+    for (const [wid, e] of Object.entries(day.crew || {})) {
+      for (const s of SLOTS) {
+        const r = rateOf(e, s.k);
+        if (r != null) out.push({ date: day.date, wid, role: slotRole(e, s.k), slot: s.k, rate: r });
+      }
+    }
+  }
+  return out;
+}
+
+/* ---------- status ---------- */
+function setStatus(s, text) {
+  const el = document.getElementById("status");
+  el.dataset.s = s;
+  document.getElementById("statusText").textContent = text;
+}
+function idleStatus() {
+  if (!S.relayReady) return;
+  if (S.pending.size || S.inflight) setStatus("saving", "Saving…");
+  else setStatus("saved", "All changes saved");
+}
+
+/* ---------- relay ---------- */
+// The Apps Script web app (relay/Code.gs) that reads and writes the "Crew Audits Data" Google Sheet.
+// The page holds no keys; every request carries the crew PIN.
+const RELAY_URL = window.LABOR_RELAY_URL || "https://script.google.com/macros/s/AKfycbwwljieXC7D8-pbpdQTDa_fi1rC3K4wLXTZULh-ttTqz_azGivX2m3LuG7o84RctwGr/exec";
+async function relay(action, body) {
+  if (!RELAY_URL) throw { code: "setup", message: "The audit sheet isn't connected to its Google Sheet yet." };
+  let res, data;
+  try {
+    // text/plain body: no CORS preflight, which Apps Script can't answer
+    res = await fetch(RELAY_URL, { method: "POST", body: JSON.stringify({ action, pin: S.pin, ...body }) });
+    data = await res.json();
+  } catch (e) { throw { code: "network", message: "Can't reach the audit data." }; }
+  if (!data.ok) throw { code: data.code || "error", message: data.error || "Something went wrong." };
+  return data;
+}
+
+/* ---------- saving: only the people that changed, one request at a time ---------- */
+let saveTimer = null;
+function markDirty(date, ids) {
+  let set = S.pending.get(date);
+  if (!set) S.pending.set(date, set = new Set());
+  for (const id of ids) set.add(id);
+  stashPending();
+  idleStatus();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flush, 600);
+}
+async function flush() {
+  if (S.inflight || !S.relayReady) return;
+  const first = S.pending.entries().next().value;
+  if (!first) { idleStatus(); return; }
+  const [date, idSet] = first;
+  const ids = [...idSet];
+  S.pending.delete(date);
+  S.inflight = { date, ids };
+  idleStatus();
+  const crew = S.days[date]?.crew || {};
+  const entries = {};
+  for (const id of ids) entries[id] = crew[id] ? JSON.parse(JSON.stringify(crew[id])) : null;
+  let ok = false;
+  try {
+    const r = await relay("saveDay", { date, entries });
+    S.inflight = null;
+    S.days[date] = mergeDay(r.day);
+    ok = true;
+  } catch (e) {
+    S.inflight = null;
+    // put the changes back so they go out on the next try
+    let set = S.pending.get(date);
+    if (!set) S.pending.set(date, set = new Set());
+    ids.forEach(i => set.add(i));
+    handleWriteError(e);
+  }
+  stashPending();
+  if (!ok) return;
+  render();
+  if (S.pending.size) flush(); else idleStatus();
+}
+// Save button: send anything waiting now and say when it's in
+async function saveNow() {
+  document.activeElement?.blur?.();
+  clearTimeout(saveTimer);
+  S.saveLabel = "Saving…"; render();
+  flush();
+  const until = Date.now() + 15000;
+  while ((S.pending.size || S.inflight) && Date.now() < until) await new Promise(r => setTimeout(r, 200));
+  S.saveLabel = S.pending.size || S.inflight ? "Not saved yet — check signal" : "Saved ✓";
+  render();
+  setTimeout(() => { S.saveLabel = null; render(); }, 2500);
+}
+function handleWriteError(e) {
+  if (e?.code === "bad_pin" || e?.code === "locked") { lockOut(e); return; }
+  setStatus("error", e?.code === "network" ? "Offline — changes kept on this device, retrying" : "Couldn't save — retrying");
+  clearTimeout(S.retryTimer);
+  S.retryTimer = setTimeout(flush, 4000 + Math.random() * 2000);
+}
+
+// Server copy of a day, with this device's unsaved people laid over it
+function mergeDay(serverDay) {
+  const date = serverDay.date;
+  const local = S.days[date];
+  const dirty = new Set([...(S.pending.get(date) || []), ...(S.inflight?.date === date ? S.inflight.ids : [])]);
+  const out = structuredClone(serverDay);
+  out.crew = out.crew || {};
+  for (const id of dirty) {
+    if (local?.crew?.[id]) out.crew[id] = local.crew[id];
+    else delete out.crew[id];
+  }
+  return out;
+}
+
+// Unsaved changes survive a closed tab or a dropped connection
+function stashPending() {
+  const out = {};
+  const add = (date, ids) => { for (const id of ids) (out[date] ||= {})[id] = S.days[date]?.crew?.[id] || null; };
+  for (const [date, ids] of S.pending) add(date, ids);
+  if (S.inflight) add(S.inflight.date, S.inflight.ids);
+  try { localStorage.setItem("laborPending", JSON.stringify(out)); } catch (e) {}
+}
+function restorePending() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem("laborPending") || "{}") || {}; } catch (e) {}
+  for (const [date, entries] of Object.entries(saved)) {
+    const day = ensureDay(date);
+    for (const [id, entry] of Object.entries(entries)) {
+      if (entry) day.crew[id] = entry; else delete day.crew[id];
+    }
+    markDirty(date, Object.keys(entries));
+  }
+}
+
+/* ---------- render ---------- */
+const main = document.getElementById("main");
+function render(keepTyped) {
+  // don't wipe a field the supervisor is typing in
+  const a = document.activeElement;
+  if (a && a.classList?.contains("rate") && main.contains(a)) { S.renderQueued = true; return; }
+  S.renderQueued = false;
+  const focusId = a && a.id && main.contains(a) ? a.id : null;
+  const typed = keepTyped && focusId && a.type === "text" ? { v: a.value, s: a.selectionStart, e: a.selectionEnd } : null;
+  for (const v of ["audit", "crew", "reports"]) {
+    document.getElementById("tab-" + v).setAttribute("aria-current", S.view === v ? "page" : "false");
+  }
+  if (!S.relayReady) return;
+  if (!S.loaded.workers || !S.loaded.days) return;
+  main.innerHTML = S.view === "audit" ? viewAudit() : S.view === "crew" ? viewCrew() : viewReports();
+  if (focusId) {
+    const el = document.getElementById(focusId);
+    if (el) {
+      if (typed) el.value = typed.v;
+      el.focus();
+      if (el.classList.contains("rate")) el.select();
+      else if (typed) el.setSelectionRange(typed.s, typed.e);
+    }
+  }
+}
+main.addEventListener("focusout", () => setTimeout(() => { if (S.renderQueued && !S.tagDown) render(); }, 0));
+// T/B tags: keep focus where it is, and hold off redraws until the tap finishes, so the click isn't lost
+main.addEventListener("pointerdown", e => { if (e.target.closest("button.rt")) { S.tagDown = true; setTimeout(() => { S.tagDown = false; }, 1500); } });
+main.addEventListener("mousedown", e => { if (e.target.closest("button.rt")) e.preventDefault(); });
+
+/* ---------- AUDIT SHEET ---------- */
+function viewAudit() {
+  const day = getDay(S.date);
+  const n = Object.keys(day.crew || {}).length;
+  const builderOpen = S.showBuilder ?? n === 0;
+  const isToday = S.date === iso(new Date());
+  return `
+  <section class="panel">
+    <div class="row spread">
+      <div class="datebar">
+        <button class="btn small" data-act="prev" aria-label="Previous day">‹</button>
+        <input type="date" id="dateInput" value="${S.date}" aria-label="Audit date">
+        <button class="btn small" data-act="next" aria-label="Next day">›</button>
+        <span class="dow">${esc(fmtDate(S.date, { weekday: "long" }))}</span>
+        ${isToday ? "" : `<button class="btn small" data-act="today">Today</button>`}
+      </div>
+      <div class="row">
+        <span class="muted">${n} on crew</span>
+        ${S.canWrite ? `<button class="btn ${builderOpen ? "" : "primary"}" data-act="builder">${builderOpen ? "Close crew picker" : "Build crew"}</button>` : ""}
+      </div>
+    </div>
+    ${builderOpen && S.canWrite ? viewBuilder(day) : ""}
+  </section>
+  ${n ? `<section class="panel"><div class="row spread"><h2>Day summary</h2><span class="note">Averages skip blank cells and audits after someone left.</span></div><div id="summary">${viewSummary(day)}</div></section>` : ""}
+  ${n ? viewSheet(day) : (builderOpen ? "" : `<div class="empty"><strong>No crew on this day yet</strong><span>Use Build crew to pick who's working, then enter rates at each audit.</span></div>`)}
+  `;
+}
+
+function viewBuilder(day) {
+  const ws = Object.entries(S.workers).filter(([, w]) => w.active !== false)
+    .sort((a, b) => byName(a[1].name, b[1].name));
+  const prev = Object.keys(S.days).filter(d => d < S.date && Object.keys(S.days[d].crew || {}).length).sort().pop();
+  const pick = role => ws.filter(([, w]) => (w.role || "trim") === role).map(([id, w]) => {
+    const e = day.crew?.[id];
+    const locked = e && hasRates(e);
+    return `<label class="pick ${e ? "on" : ""} ${locked ? "locked" : ""}" title="${locked ? "Has rates entered. Remove from the sheet below." : ""}">
+      <input type="checkbox" id="cb-${id}" data-pick="${id}" ${e ? "checked" : ""} ${locked ? "disabled" : ""}>
+      <span class="n">${esc(w.name)}</span>
+      ${e && e.role !== (w.role || "trim") ? `<span class="chip ${e.role}">${e.role === "trim" ? "trim" : "buck"}</span>` : ""}
+    </label>`;
+  }).join("");
+  const trimP = pick("trim"), buckP = pick("buck");
+  return `
+  <div class="panel" style="background:var(--field)">
+    <div class="row spread">
+      <h3>Who's on the floor ${esc(fmtDate(S.date))}</h3>
+      <div class="row">
+        ${prev ? `<button class="btn small" data-act="copyprev" data-from="${prev}">Copy crew from ${esc(fmtDate(prev, { weekday: "short", month: "short", day: "numeric" }))}</button>` : ""}
+        ${ws.length ? `<button class="btn small" data-act="all">Add everyone</button>` : ""}
+      </div>
+    </div>
+    ${ws.length ? `
+      ${trimP ? `<div class="label">Hand trimmers</div><div class="builder">${trimP}</div>` : ""}
+      ${buckP ? `<div class="label">Buckers</div><div class="builder">${buckP}</div>` : ""}
+    ` : `<p class="muted" style="margin:0">Your roster is empty. Add each trimmer and bucker below; they'll be saved for next time.</p>`}
+    <form class="row" id="quickAdd" autocomplete="off">
+      <input type="text" id="qaName" placeholder="New person's name" aria-label="New person's name" style="flex:1;min-width:180px">
+      <select id="qaRole" aria-label="Role"><option value="trim">Hand trim</option><option value="buck">Bucking</option></select>
+      <button class="btn primary" type="submit">Add to roster &amp; crew</button>
+    </form>
+    ${S.addMsg ? `<div class="msg err">${esc(S.addMsg)}</div>` : ""}
+  </div>`;
+}
+
+function daySummaryFor(day, role) {
+  const rows = Object.entries(day.crew || {}).filter(([, e]) => SLOTS.some(s => slotRole(e, s.k) === role));
+  const at = (e, k) => slotRole(e, k) === role ? rateOf(e, k) : null;
+  const slotAvgs = SLOTS.map(s => mean(rows.map(([, e]) => at(e, s.k)).filter(v => v != null)));
+  const all = rows.flatMap(([, e]) => SLOTS.map(s => at(e, s.k)).filter(v => v != null));
+  const people = rows.map(([id, e]) => ({ id, avg: entryAvg(e, role) })).filter(p => p.avg != null).sort((a, b) => b.avg - a.avg);
+  return { rows, slotAvgs, dayAvg: mean(all), people };
+}
+
+function viewSummary(day) {
+  const cards = Object.keys(ROLES).map(role => {
+    const s = daySummaryFor(day, role);
+    if (!s.rows.length) return "";
+    const fast = s.people[0], slow = s.people.length > 1 ? s.people[s.people.length - 1] : null;
+    return `<div class="sumcard ${role}">
+      <div class="row spread"><h3>${ROLES[role]}</h3><span class="muted">${s.rows.length} ${s.rows.length === 1 ? "person" : "people"}</span></div>
+      <div class="slots">
+        ${SLOTS.map((sl, i) => `<div class="slot"><span class="label">${sl.label}</span><b>${f2(s.slotAvgs[i])}</b></div>`).join("")}
+        <div class="slot day"><span class="label">Day avg</span><b>${f2(s.dayAvg)}</b></div>
+      </div>
+      <div class="who">
+        <div><span class="label">Fastest</span><strong>${fast ? esc(nameOf(fast.id)) : "—"}</strong><span class="num muted">${fast ? f2(fast.avg) + " " + U() : "No rates yet"}</span></div>
+        <div><span class="label">Slowest</span><strong>${slow ? esc(nameOf(slow.id)) : "—"}</strong><span class="num muted">${slow ? f2(slow.avg) + " " + U() : "Needs 2+ people"}</span></div>
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="sumgrid">${cards}</div>`;
+}
+
+function viewSheet(day) {
+  const ro = !S.canWrite ? "disabled" : "";
+  const group = role => {
+    const rows = crewOf(day, role);
+    if (!rows.length) return "";
+    return `<tr class="grouphead ${role}"><td colspan="7">${ROLES[role]} · ${rows.length}</td></tr>` + rows.map(([id, e]) => {
+      return `<tr class="${e.leftBefore ? "left" : ""}">
+        <td class="name">${esc(nameOf(id))}${isMixed(e) ? ` <span class="chip out">switched</span>` : ""}</td>
+        ${SLOTS.map(s => {
+          const v = e.lbs?.[s.k];
+          const off = !counts(e, s.k);
+          const sr = slotRole(e, s.k);
+          const tag = S.canWrite
+            ? `<button class="rt ${sr}" tabindex="-1" data-rt="${id}" data-slot="${s.k}" title="Switch to ${sr === "trim" ? "bucking" : "hand trim"} from ${s.label} on" aria-label="${esc(nameOf(id))} ${s.label}: ${ROLES[sr]}. Tap to switch">${sr === "trim" ? "T" : "B"}</button>`
+            : `<span class="rt ${sr}">${sr === "trim" ? "T" : "B"}</span>`;
+          return `<td class="r"><div class="cell">${off ? "" : tag}<input class="rate ${typeof v === "number" ? "filled" : ""}" id="r-${id}-${s.k}" data-w="${id}" data-slot="${s.k}" type="text" inputmode="${S.unit === "g" ? "numeric" : "decimal"}" placeholder="${off ? "out" : "—"}" value="${typeof v === "number" ? toInput(v) : ""}" aria-label="${esc(nameOf(id))} ${s.label} ${U()}" ${off ? "disabled" : ""} ${ro}></div></td>`;
+        }).join("")}
+        <td class="r num" id="avg-${id}">${avgCell(e)}</td>
+        <td><select id="lb-${id}" data-left="${id}" aria-label="${esc(nameOf(id))} left early" ${ro}>
+          ${Object.entries(LEFT).map(([k, l]) => `<option value="${k}" ${(e.leftBefore || "") === k ? "selected" : ""}>${l}</option>`).join("")}
+        </select></td>
+        <td>${S.canWrite ? `
+          <select id="ro-${id}" data-role="${id}" aria-label="${esc(nameOf(id))} started the day as">
+            <option value="trim" ${e.role === "trim" ? "selected" : ""}>Trim</option>
+            <option value="buck" ${e.role === "buck" ? "selected" : ""}>Buck</option>
+          </select>
+          <button class="btn small ${S.armed === id ? "confirm" : "danger"}" data-remove="${id}">${S.armed === id ? "Confirm remove" : "Remove"}</button>` : ""}
+        </td>
+      </tr>`;
+    }).join("");
+  };
+  return `<section class="panel">
+    <div class="row sheethead">
+      <h2>Audit sheet</h2>
+      ${S.canWrite ? `<button class="btn small primary" id="saveBtn" data-act="save">${esc(S.saveLabel || "Save")}</button>` : ""}
+      <div class="unitswitch" role="group" aria-label="Units">
+        <button id="unit-lbs" data-unit="lbs" aria-pressed="${S.unit === "lbs"}">lbs/h</button>
+        <button id="unit-g" data-unit="g" aria-pressed="${S.unit === "g"}">g/h</button>
+      </div>
+    </div>
+    <span class="note">Enter ${U()} from the last hour before each break${S.unit === "g" ? " (1 lb = 454 g)" : ""}. Tap T/B beside a box if someone switched to bucking or hand trim; it carries forward to later audits.</span>
+    <div class="tablebox"><table>
+      <thead><tr><th class="name">Name</th>${SLOTS.map(s => `<th class="r">${s.label}<span class="slotsub">${s.sub}</span></th>`).join("")}<th class="r">Day avg</th><th>Left early</th><th>Started as</th></tr></thead>
+      <tbody>${group("trim")}${group("buck")}</tbody>
+    </table></div>
+  </section>`;
+}
+
+/* ---------- ROSTER ---------- */
+function workerStats(id) {
+  const recs = records().filter(r => r.wid === id);
+  const days = new Set(recs.map(r => r.date));
+  let early = 0, onCrew = 0, last = null;
+  for (const d of Object.values(S.days)) {
+    const e = d.crew?.[id];
+    if (!e) continue;
+    onCrew++;
+    if (e.leftBefore) early++;
+    if (!last || d.date > last) last = d.date;
+  }
+  return {
+    trim: mean(recs.filter(r => r.role === "trim").map(r => r.rate)),
+    buck: mean(recs.filter(r => r.role === "buck").map(r => r.rate)),
+    audits: recs.length, days: days.size, early, onCrew, last, recs,
+  };
+}
+
+function viewCrew() {
+  const list = Object.entries(S.workers).sort((a, b) => (b[1].active !== false) - (a[1].active !== false) || byName(a[1].name, b[1].name));
+  const sel = S.selWorker && S.workers[S.selWorker] ? S.selWorker : null;
+  const crew = getDay(S.date).crew || {};
+  const onCrew = Object.keys(crew).length;
+  const dayWord = S.date === iso(new Date()) ? "today" : fmtDate(S.date, { weekday: "short", month: "short", day: "numeric" });
+  const crewBtn = (id, active) => {
+    const e = crew[id];
+    if (!S.canWrite) return e ? `<span class="chip fast">On crew</span>` : "";
+    if (e && hasRates(e)) return `<button class="btn small oncrew" disabled title="Has rates entered. Remove from the audit sheet.">✓ On crew</button>`;
+    if (e) return `<button class="btn small oncrew" data-crew="${id}" title="Tap to take off ${esc(dayWord)}'s crew">✓ On crew</button>`;
+    return `<button class="btn small" data-crew="${id}" ${active ? "" : "disabled"}>Add to ${esc(dayWord)}</button>`;
+  };
+  return `
+  <section class="panel">
+    <div class="row spread"><h2>Crew roster</h2><span class="muted">${list.filter(([, w]) => w.active !== false).length} active</span></div>
+    <div class="row spread crewbar">
+      <span><strong class="num">${onCrew}</strong> on ${dayWord}'s crew${S.date === iso(new Date()) ? "" : ` <button class="btn small" data-act="today">Switch to today</button>`}</span>
+      <button class="btn ${onCrew ? "primary" : ""}" data-goto="${S.date}">Go to audit sheet</button>
+    </div>
+    ${S.canWrite ? `<form class="row" id="rosterAdd" autocomplete="off">
+      <input type="text" id="raName" placeholder="Full name" aria-label="Full name" style="flex:1;min-width:180px">
+      <select id="raRole" aria-label="Usual role"><option value="trim">Hand trim</option><option value="buck">Bucking</option></select>
+      <button class="btn primary" type="submit">Add to roster</button>
+    </form>${S.rosterMsg ? `<div class="msg err">${esc(S.rosterMsg)}</div>` : ""}` : ""}
+    ${list.length ? `<div class="tablebox"><table>
+      <thead><tr><th class="name">Name</th><th>Usual role</th><th>${esc(dayWord[0].toUpperCase() + dayWord.slice(1))}</th><th class="r">Avg trim</th><th class="r">Avg buck</th><th class="r">Days</th><th class="r">Audits</th><th class="r">Left early</th><th>Last worked</th><th></th></tr></thead>
+      <tbody>${list.map(([id, w]) => {
+        const st = workerStats(id);
+        const active = w.active !== false;
+        return `<tr class="${active ? "" : "left"}">
+          <td class="name">${S.editName === id ? `<form class="rename" data-rename="${id}" autocomplete="off">
+            <input type="text" id="rn-${id}" value="${esc(w.name)}" maxlength="60" aria-label="New name for ${esc(w.name)}">
+            <button class="btn small primary" type="submit">Save</button>
+            <button class="btn small" type="button" data-rncancel="1">Cancel</button>
+          </form>` : `<button class="lnk" data-sel="${id}">${esc(w.name)}</button>${S.canWrite ? ` <button class="btn small edit" data-edit="${id}" aria-label="Edit ${esc(w.name)}'s name">Edit</button>` : ""}`}</td>
+          <td>${S.canWrite ? `<select id="wr-${id}" data-wrole="${id}" aria-label="${esc(w.name)} usual role"><option value="trim" ${w.role !== "buck" ? "selected" : ""}>Hand trim</option><option value="buck" ${w.role === "buck" ? "selected" : ""}>Bucking</option></select>` : `<span class="chip ${w.role || "trim"}">${ROLES[w.role || "trim"]}</span>`}</td>
+          <td>${crewBtn(id, active)}</td>
+          <td class="r num">${f2(st.trim)}</td>
+          <td class="r num">${f2(st.buck)}</td>
+          <td class="r num">${st.onCrew}</td>
+          <td class="r num">${st.audits}</td>
+          <td class="r num">${st.early ? `<span class="chip out">${st.early}</span>` : "0"}</td>
+          <td>${st.last ? esc(fmtDate(st.last, { month: "short", day: "numeric", year: "numeric" })) : `<span class="muted">Never</span>`}</td>
+          <td>${S.canWrite ? `<button class="btn small" data-active="${id}">${active ? "Deactivate" : "Reactivate"}</button>` : ""}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table></div>
+    <p class="note" style="margin:0">Deactivated people stay in your history but drop out of the crew picker.</p>`
+    : `<div class="empty"><strong>No one on the roster yet</strong><span>Add your trimmers and buckers above, or add them straight from the crew picker on the audit sheet.</span></div>`}
+  </section>
+  ${sel ? viewWorker(sel) : ""}`;
+}
+
+function viewWorker(id) {
+  const st = workerStats(id);
+  const byDay = Object.values(S.days).filter(d => d.crew?.[id]).sort((a, b) => b.date.localeCompare(a.date));
+  return `<section class="panel">
+    <div class="row spread"><h2>${esc(nameOf(id))}</h2><button class="btn small" data-sel="">Close</button></div>
+    <div class="kpis">
+      <div><span class="label">Avg hand trim</span><b>${f2(st.trim)}</b></div>
+      <div><span class="label">Avg bucking</span><b>${f2(st.buck)}</b></div>
+      <div><span class="label">Days on crew</span><b>${st.onCrew}</b></div>
+      <div><span class="label">Left early</span><b>${st.early}</b></div>
+    </div>
+    ${byDay.length ? `<div class="tablebox"><table>
+      <thead><tr><th class="name">Date</th><th>Role</th>${SLOTS.map(s => `<th class="r">${s.label}</th>`).join("")}<th class="r">Day avg</th><th>Left early</th></tr></thead>
+      <tbody>${byDay.map(d => { const e = d.crew[id]; return `<tr>
+        <td class="name"><button class="lnk" data-goto="${d.date}">${esc(fmtDate(d.date, { weekday: "short", month: "short", day: "numeric" }))}</button></td>
+        <td>${isMixed(e) ? `<span class="chip ${e.role}">${e.role === "trim" ? "Trim" : "Buck"}</span> → <span class="chip ${e.role === "trim" ? "buck" : "trim"}">${e.role === "trim" ? "Buck" : "Trim"}</span>` : `<span class="chip ${e.role}">${ROLES[e.role]}</span>`}</td>
+        ${SLOTS.map(s => `<td class="r num">${counts(e, s.k) ? `${isMixed(e) ? `<span class="rt ${slotRole(e, s.k)}">${slotRole(e, s.k) === "trim" ? "T" : "B"}</span> ` : ""}${f2(rateOf(e, s.k))}` : `<span class="muted">out</span>`}</td>`).join("")}
+        <td class="r num">${avgCell(e)}</td>
+        <td>${e.leftBefore ? `<span class="chip out">${LEFT[e.leftBefore]}</span>` : ""}</td>
+      </tr>`; }).join("")}</tbody>
+    </table></div>` : `<p class="muted" style="margin:0">Not on any audit sheet yet.</p>`}
+  </section>`;
+}
+
+/* ---------- REPORTS ---------- */
+function inRange(date) {
+  if (S.range === "all") return true;
+  return date > shift(iso(new Date()), -Number(S.range)) && date <= iso(new Date());
+}
+
+function viewReports() {
+  const recs = records(inRange);
+  const ranges = [["1", "Today"], ["3", "Last 3 days"], ["7", "Last week"], ["14", "Last 2 weeks"], ["30", "Last month"]];
+  const live = S.range === "1";
+  const crewToday = Object.keys(getDay(iso(new Date())).crew || {}).length;
+  const updated = S.lastLoad ? new Date(S.lastLoad).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }) : "";
+  const head = `<section class="panel"><div class="row spread"><h2>Crew performance</h2>
+    <select id="rangeSel" aria-label="Date range">${ranges.map(([k, l]) => `<option value="${k}" ${S.range === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    ${live ? `<div class="liveline"><i></i><strong>Live</strong><span class="muted">Fills in as the crew enters numbers · updates about every 20 seconds${updated ? ` · last update ${esc(updated)}` : ""}</span></div>` : ""}
+    ${live
+      ? (crewToday ? "" : `<div class="empty"><strong>No crew on today's audit sheet yet</strong><span>Once the supervisor builds today's crew, each person shows up here and their numbers fill in through the day.</span></div>`)
+      : recs.length ? viewTrend(recs) : `<div class="empty"><strong>No audits in this range</strong><span>Once rates are entered on the audit sheet, averages by break, trends and fastest/slowest rankings show up here.</span></div>`}
+  </section>`;
+  if (live ? !crewToday : !recs.length) return head;
+  return head + Object.keys(ROLES).map(role => viewRoleReport(role, recs.filter(r => r.role === role))).join("");
+}
+
+function viewTrend(recs) {
+  const dates = [...new Set(recs.map(r => r.date))].sort();
+  if (dates.length < 2) return `<p class="note" style="margin:0">${S.range === "1" ? "Pick a longer range to see the day-by-day trend." : "The daily trend chart appears after two audit days in this range."}</p>`;
+  const series = Object.keys(ROLES).map(role => ({
+    role, pts: dates.map((d, i) => ({ i, d, v: mean(recs.filter(r => r.role === role && r.date === d).map(r => r.rate)) })).filter(p => p.v != null),
+  })).filter(s => s.pts.length);
+  const W = 680, H = 220, L = 44, R = 16, T = 14, B = 30;
+  const maxV = Math.max(...recs.map(r => r.rate));
+  const step = maxV > 20 ? 5 : maxV > 8 ? 2 : maxV > 4 ? 1 : 0.5;
+  const top = Math.ceil((maxV * 1.08) / step) * step || 1;
+  const x = i => L + (dates.length === 1 ? 0 : (i / (dates.length - 1)) * (W - L - R));
+  const y = v => T + (1 - v / top) * (H - T - B);
+  let grid = "";
+  for (let v = 0; v <= top + 1e-9; v += step) {
+    grid += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>
+      <text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="var(--mono)">${shownUnit() === "g" ? Math.round(v * G_PER_LB) : +v.toFixed(1)}</text>`;
+  }
+  const every = Math.ceil(dates.length / 7);
+  const xl = dates.map((d, i) => (i % every === 0 || i === dates.length - 1) ? `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(fmtDate(d))}</text>` : "").join("");
+  const lines = series.map(s => {
+    const col = `var(--${s.role})`;
+    const pts = s.pts.map(p => `${x(p.i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+    const last = s.pts[s.pts.length - 1];
+    return `<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/>
+      ${s.pts.map(p => `<circle cx="${x(p.i)}" cy="${y(p.v)}" r="3" fill="${col}"><title>${ROLES[s.role]} ${fmtDate(p.d)}: ${f2(p.v)} ${U()}</title></circle>`).join("")}
+      <circle cx="${x(last.i)}" cy="${y(last.v)}" r="5.5" fill="var(--card)" stroke="${col}" stroke-width="2.5"/>`;
+  }).join("");
+  return `<div class="chart">
+    <div class="row spread"><span class="label">Daily crew average · ${U()}</span>
+      <div class="legend">${series.map(s => `<span><i style="background:var(--${s.role})"></i>${ROLES[s.role]}</span>`).join("")}</div></div>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily crew average ${U()}">${grid}${xl}${lines}</svg>
+  </div>`;
+}
+
+// Today: everyone on today's crew who worked this role, numbers filling in as they're entered
+function todayRows(role) {
+  const day = getDay(iso(new Date()));
+  return Object.entries(day.crew || {}).filter(([, e]) => SLOTS.some(s => slotRole(e, s.k) === role)).map(([id, e]) => {
+    const rates = SLOTS.map(s => slotRole(e, s.k) === role ? rateOf(e, s.k) : null);
+    const got = rates.filter(v => v != null);
+    return { id, e, rates, avg: mean(got), lo: got.length ? Math.min(...got) : null, hi: got.length ? Math.max(...got) : null };
+  }).sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1) || byName(nameOf(a.id), nameOf(b.id)));
+}
+
+function viewLiveTable(role, rows) {
+  const ranked = rows.filter(r => r.avg != null).length;
+  const tag = Math.min(3, Math.floor(ranked / 2));
+  return `<div class="tablebox"><table>
+    <thead><tr><th class="r">#</th><th class="name">Name</th>${SLOTS.map(s => `<th class="r">${s.label}</th>`).join("")}<th class="r">Avg ${U()}</th><th>Left early</th><th class="r">Slowest audit</th><th class="r">Best audit</th><th></th></tr></thead>
+    <tbody>${rows.map((r, i) => {
+      const chip = r.avg == null ? "" : i < tag ? `<span class="chip fast">Fastest</span>` : i >= ranked - tag ? `<span class="chip slow">Slowest</span>` : "";
+      const cells = SLOTS.map((s, j) => {
+        if (!counts(r.e, s.k)) return `<td class="r muted">out</td>`;
+        if (slotRole(r.e, s.k) !== role) return `<td class="r muted" title="${ROLES[slotRole(r.e, s.k)]} this audit">${slotRole(r.e, s.k) === "trim" ? "trim" : "buck"}</td>`;
+        return `<td class="r num">${f2(r.rates[j])}</td>`;
+      }).join("");
+      return `<tr><td class="r num muted">${r.avg == null ? "" : i + 1}</td>
+        <td class="name"><button class="lnk" data-sel="${r.id}" data-jump="crew">${esc(nameOf(r.id))}</button></td>
+        ${cells}
+        <td class="r num"><strong>${f2(r.avg)}</strong></td>
+        <td>${r.e.leftBefore ? `<span class="chip out">${LEFT[r.e.leftBefore]}</span>` : `<span class="muted">—</span>`}</td>
+        <td class="r num">${f2(r.lo)}</td>
+        <td class="r num">${f2(r.hi)}</td>
+        <td>${chip}</td></tr>`;
+    }).join("")}</tbody>
+  </table></div>`;
+}
+
+function viewRoleReport(role, recs) {
+  const live = S.range === "1";
+  const rows = live ? todayRows(role) : null;
+  if (live && !rows.length) return "";
+  if (!live && !recs.length) return "";
+  if (!recs.length) return `<section class="panel ${role}">
+    <div class="row spread"><h2 style="color:var(--${role})">${ROLES[role]}</h2><span class="muted">${rows.length} on today's crew · no numbers yet</span></div>
+    ${viewLiveTable(role, rows)}
+  </section>`;
+  const crewAvg = mean(recs.map(r => r.rate));
+  const slotAvg = SLOTS.map(s => mean(recs.filter(r => r.slot === s.k).map(r => r.rate)));
+  const maxSlot = Math.max(...slotAvg.filter(v => v != null));
+  const people = {};
+  for (const r of recs) (people[r.wid] ||= []).push(r);
+  // early-outs within range for this role
+  const early = {};
+  for (const d of Object.values(S.days)) {
+    if (!inRange(d.date)) continue;
+    for (const [id, e] of Object.entries(d.crew || {})) if (e.leftBefore && SLOTS.some(s => slotRole(e, s.k) === role)) early[id] = (early[id] || 0) + 1;
+  }
+  const rank = Object.entries(people).map(([id, rs]) => ({
+    id, avg: mean(rs.map(r => r.rate)), n: rs.length, days: new Set(rs.map(r => r.date)).size,
+    best: Math.max(...rs.map(r => r.rate)), early: early[id] || 0,
+  })).sort((a, b) => b.avg - a.avg);
+  const tag = Math.min(3, Math.floor(rank.length / 2));
+  let insight = "";
+  const [a, , c] = slotAvg;
+  if (a != null && c != null && a > 0) {
+    const ch = (c - a) / a * 100;
+    insight = Math.abs(ch) < 3
+      ? `Rates hold steady through the day: Break 2 is within ${Math.abs(ch).toFixed(0)}% of Break 1.`
+      : ch < 0
+        ? `Rates drop ${Math.abs(ch).toFixed(0)}% from the Break 1 audit to the Break 2 audit. The afternoon is where the most time is being lost.`
+        : `Rates climb ${ch.toFixed(0)}% from Break 1 to Break 2. Mornings are the slow stretch.`;
+  }
+  const below = rank.filter(p => p.avg < crewAvg * 0.85);
+  return `<section class="panel ${role}">
+    <div class="row spread"><h2 style="color:var(--${role})">${ROLES[role]}</h2><span class="muted">${live ? `${rows.length} on today's crew · ${recs.length} ${recs.length === 1 ? "audit" : "audits"} in` : `${rank.length} ${rank.length === 1 ? "person" : "people"} · ${recs.length} ${recs.length === 1 ? "audit" : "audits"}`}</span></div>
+    <div class="sumgrid">
+      <div class="kpis" style="align-content:start">
+        <div><span class="label">Crew avg</span><b>${f2(crewAvg)}</b><span class="note">${U()}</span></div>
+        <div><span class="label">Fastest avg</span><b>${f2(rank[0].avg)}</b><span class="note">${esc(nameOf(rank[0].id))}</span></div>
+        ${rank.length > 1 ? `<div><span class="label">Slowest avg</span><b>${f2(rank[rank.length - 1].avg)}</b><span class="note">${esc(nameOf(rank[rank.length - 1].id))}</span></div>` : ""}
+      </div>
+      <div class="bars">
+        <span class="label">Average by audit</span>
+        ${SLOTS.map((s, i) => `<div class="bar"><span>${s.label}</span><div class="track"><div class="fill" style="width:${slotAvg[i] != null ? (slotAvg[i] / maxSlot * 100).toFixed(1) : 0}%"></div></div><span class="num r" style="text-align:right">${f2(slotAvg[i])}</span></div>`).join("")}
+      </div>
+    </div>
+    ${insight ? `<div class="insight">${insight}${below.length ? ` ${below.length} ${below.length === 1 ? "person is" : "people are"} running more than 15% under the crew average.` : ""}</div>` : ""}
+    ${live ? viewLiveTable(role, rows) : `<div class="tablebox"><table>
+      <thead><tr><th class="r">#</th><th class="name">Name</th><th class="r">Avg ${U()}</th><th class="r">vs crew</th><th class="r">Left early</th><th class="r">Best audit</th><th class="r">Audits</th><th class="r">Days</th><th></th></tr></thead>
+      <tbody>${rank.map((p, i) => {
+        const vs = (p.avg - crewAvg) / crewAvg * 100;
+        const chip = i < tag ? `<span class="chip fast">Fastest</span>` : i >= rank.length - tag ? `<span class="chip slow">Slowest</span>` : "";
+        return `<tr><td class="r num muted">${i + 1}</td>
+          <td class="name"><button class="lnk" data-sel="${p.id}" data-jump="crew">${esc(nameOf(p.id))}</button></td>
+          <td class="r num"><strong>${f2(p.avg)}</strong></td>
+          <td class="r num" style="color:${vs >= 0 ? "var(--good)" : "var(--bad)"}">${vs >= 0 ? "+" : "−"}${Math.abs(vs).toFixed(0)}%</td>
+          <td class="r num">${p.early ? `<span class="chip out">${p.early}</span>` : "0"}</td>
+          <td class="r num">${f2(p.best)}</td><td class="r num">${p.n}</td><td class="r num">${p.days}</td>
+          <td>${chip}</td></tr>`;
+      }).join("")}</tbody>
+    </table></div>`}
+  </section>`;
+}
+
+/* ---------- actions ---------- */
+function setView(v) {
+  S.view = v;
+  try { history.replaceState(null, "", "#" + v); } catch (e) {}
+  render();
+  window.scrollTo(0, 0);
+}
+document.querySelector("nav.tabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-view]");
+  if (b) setView(b.dataset.view);
+});
+
+function addToCrew(date, ids) {
+  const day = ensureDay(date);
+  let order = Object.values(day.crew).reduce((m, e) => Math.max(m, e.order ?? 0), 0);
+  for (const id of ids) {
+    if (day.crew[id]) continue;
+    day.crew[id] = { role: S.workers[id]?.role || "trim", order: ++order, lbs: { b1: null, lunch: null, b2: null }, leftBefore: null };
+  }
+  markDirty(date, ids);
+}
+
+async function createWorker(name, role) {
+  name = name.trim().replace(/\s+/g, " ");
+  if (!name) return { err: "Type a name first." };
+  if (Object.values(S.workers).some(w => w.name.toLowerCase() === name.toLowerCase())) return { err: `${name} is already on the roster.` };
+  const id = "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const body = { name, role, active: true, createdAt: new Date().toISOString() };
+  S.workers[id] = body;
+  S.workerPending.add(id);
+  try { await relay("saveWorker", { id, worker: body }); }
+  catch (e) {
+    delete S.workers[id];
+    if (e?.code === "bad_pin" || e?.code === "locked") { lockOut(e); return { err: "" }; }
+    return { err: e?.code === "network" ? "Can't reach the audit data. Check the connection and try again." : (e?.message || "Couldn't save that name.") };
+  }
+  finally { S.workerPending.delete(id); }
+  return { id };
+}
+
+async function saveWorker(id, patch) {
+  const before = { ...S.workers[id] };
+  Object.assign(S.workers[id], patch);
+  S.workerPending.add(id);
+  render();
+  try { await relay("saveWorker", { id, worker: S.workers[id] }); S.rosterMsg = ""; }
+  catch (e) {
+    S.workers[id] = before;
+    if (e?.code === "bad_pin" || e?.code === "locked") { lockOut(e); return; }
+    S.rosterMsg = "Couldn't save that roster change. Check the connection and try again.";
+  }
+  finally { S.workerPending.delete(id); }
+  render();
+}
+
+main.addEventListener("click", e => {
+  const t = e.target.closest("button");
+  if (!t) return;
+  const act = t.dataset.act;
+  if (act === "retry") { start(); return; }
+  if (act === "save") { saveNow(); return; }
+  if (t.dataset.unit) {
+    S.unit = t.dataset.unit;
+    try { localStorage.setItem("laborUnit", S.unit); } catch (err) {}
+    document.activeElement?.blur?.();
+    render();
+    return;
+  }
+  if (act === "prev" || act === "next") { S.date = shift(S.date, act === "prev" ? -1 : 1); S.showBuilder = null; S.armed = null; render(); }
+  else if (act === "today") { S.date = iso(new Date()); S.showBuilder = null; render(); }
+  else if (act === "builder") { const n = Object.keys(getDay(S.date).crew || {}).length; S.showBuilder = !(S.showBuilder ?? n === 0); S.addMsg = ""; render(); }
+  else if (act === "copyprev") {
+    const from = S.days[t.dataset.from];
+    const day = ensureDay(S.date);
+    const added = [];
+    for (const [id, e] of Object.entries(from.crew)) {
+      if (day.crew[id] || S.workers[id]?.active === false) continue;
+      day.crew[id] = { role: e.role, order: e.order ?? 0, lbs: { b1: null, lunch: null, b2: null }, leftBefore: null };
+      added.push(id);
+    }
+    markDirty(S.date, added); render();
+  }
+  else if (act === "all") { addToCrew(S.date, Object.keys(S.workers).filter(id => S.workers[id].active !== false)); render(); }
+  else if (t.dataset.remove) {
+    const id = t.dataset.remove;
+    if (S.armed !== id) { S.armed = id; render(); setTimeout(() => { if (S.armed === id) { S.armed = null; render(); } }, 4000); return; }
+    S.armed = null;
+    delete S.days[S.date].crew[id];
+    markDirty(S.date, [id]); render();
+  }
+  else if (t.dataset.sel !== undefined) {
+    S.selWorker = t.dataset.sel || null;
+    if (t.dataset.jump) setView("crew"); else render();
+    if (S.selWorker) setTimeout(() => main.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }
+  else if (t.dataset.goto) { S.date = t.dataset.goto; S.showBuilder = false; setView("audit"); }
+  else if (t.dataset.rt) {
+    const ent = S.days[S.date]?.crew?.[t.dataset.rt];
+    if (!ent) return;
+    const id = t.dataset.rt;
+    S.tagDown = false;
+    switchFrom(ent, t.dataset.slot);
+    markDirty(S.date, [id]);
+    for (const b of main.querySelectorAll(`button.rt[data-rt="${id}"]`)) {
+      const sr = slotRole(ent, b.dataset.slot);
+      b.className = "rt " + sr;
+      b.textContent = sr === "trim" ? "T" : "B";
+      b.title = `Switch to ${sr === "trim" ? "bucking" : "hand trim"} from here on`;
+    }
+    document.getElementById("avg-" + id).innerHTML = avgCell(ent);
+    const sum = document.getElementById("summary");
+    if (sum) sum.innerHTML = viewSummary(S.days[S.date]);
+    S.renderQueued = true;
+    const a = document.activeElement;
+    if (!(a && a.classList?.contains("rate"))) render();
+  }
+  else if (t.dataset.crew) {
+    const id = t.dataset.crew;
+    if (getDay(S.date).crew?.[id]) { delete S.days[S.date].crew[id]; markDirty(S.date, [id]); }
+    else addToCrew(S.date, [id]);
+    render();
+  }
+  else if (t.dataset.edit) {
+    S.editName = t.dataset.edit; S.rosterMsg = ""; render();
+    const box = document.getElementById("rn-" + t.dataset.edit);
+    if (box) { box.focus(); box.select(); }
+  }
+  else if (t.dataset.rncancel) { S.editName = null; S.rosterMsg = ""; render(); }
+  else if (t.dataset.active) {
+    const id = t.dataset.active, w = S.workers[id];
+    const e = getDay(S.date).crew?.[id];
+    if (w.active !== false && e && !hasRates(e)) { delete S.days[S.date].crew[id]; markDirty(S.date, [id]); }
+    saveWorker(id, { active: w.active === false });
+  }
+});
+
+main.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "dateInput" && t.value) { S.date = t.value; S.showBuilder = null; S.armed = null; render(); }
+  else if (t.id === "rangeSel") { S.range = t.value; render(); }
+  else if (t.dataset.pick) {
+    const id = t.dataset.pick;
+    if (t.checked) addToCrew(S.date, [id]);
+    else { delete ensureDay(S.date).crew[id]; markDirty(S.date, [id]); }
+    render();
+  }
+  else if (t.dataset.left !== undefined && t.dataset.left) {
+    S.days[S.date].crew[t.dataset.left].leftBefore = t.value || null;
+    markDirty(S.date, [t.dataset.left]); render();
+  }
+  else if (t.dataset.role) {
+    const ent = S.days[S.date].crew[t.dataset.role];
+    ent.role = t.value;
+    delete ent.roles;
+    markDirty(S.date, [t.dataset.role]); render();
+  }
+  else if (t.dataset.wrole) saveWorker(t.dataset.wrole, { role: t.value });
+  else if (t.classList.contains("rate")) {
+    S.renderQueued = true;
+  }
+});
+
+// next person down in the same audit column (or done, at the bottom)
+function moveDown(t) {
+  const col = [...main.querySelectorAll(`input.rate[data-slot="${t.dataset.slot}"]:not(:disabled)`)];
+  const next = col[col.indexOf(t) + 1];
+  if (next) { next.focus(); next.select(); } else t.blur();
+}
+
+main.addEventListener("input", e => {
+  const t = e.target;
+  if (!t.classList.contains("rate")) return;
+  const entry = S.days[S.date]?.crew?.[t.dataset.w];
+  if (!entry) return;
+  if (S.unit !== "g" && /^[.,]/.test(t.value)) {
+    t.value = "0" + t.value.replace(",", ".");
+    t.setSelectionRange(t.value.length, t.value.length);
+  }
+  const raw = t.value.replace(",", ".").trim();
+  const v = raw === "" ? null : Number(raw);
+  if (raw !== "" && (!isFinite(v) || v < 0)) { t.style.borderColor = "var(--bad)"; return; }
+  t.style.borderColor = "";
+  t.classList.toggle("filled", v != null);
+  entry.lbs = entry.lbs || {};
+  entry.lbs[t.dataset.slot] = v == null ? null : fromInput(v);
+  document.getElementById("avg-" + t.dataset.w).innerHTML = avgCell(entry);
+  const sum = document.getElementById("summary");
+  if (sum) sum.innerHTML = viewSummary(S.days[S.date]);
+  markDirty(S.date, [t.dataset.w]);
+  // a full number moves on by itself: lbs as 1.02 or 0.85, grams as 3 digits (4 for a bucking audit)
+  const digits = slotRole(entry, t.dataset.slot) === "buck" ? 4 : 3;
+  const full = S.unit === "g" ? new RegExp(`^\\d{${digits}}$`) : /^\d+[.,]\d{2}$/;
+  if (full.test(t.value.trim())) moveDown(t);
+});
+
+// Tab walks across the row (Break 1 → Lunch → Break 2 → next person); Enter moves down the column
+main.addEventListener("keydown", e => {
+  const t = e.target;
+  if (e.key === "Escape" && t.id?.startsWith("rn-")) { S.editName = null; S.rosterMsg = ""; render(); return; }
+  if (!t.classList.contains("rate")) return;
+  if (e.key === "Tab") {
+    const all = [...main.querySelectorAll("input.rate:not(:disabled)")];
+    const next = all[all.indexOf(t) + (e.shiftKey ? -1 : 1)];
+    if (!next) return;
+    e.preventDefault();
+    next.focus();
+    next.select();
+    return;
+  }
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  moveDown(t);
+});
+
+main.addEventListener("submit", async e => {
+  e.preventDefault();
+  if (e.target.id === "pinForm") {
+    S.pin = document.getElementById("pinInput").value.trim();
+    if (S.pin) start();
+    return;
+  }
+  if (e.target.id === "quickAdd") {
+    const name = document.getElementById("qaName").value, role = document.getElementById("qaRole").value;
+    const r = await createWorker(name, role);
+    S.addMsg = r.err || "";
+    if (r.id) { addToCrew(S.date, [r.id]); S.days[S.date].crew[r.id].role = role; }
+    render();
+    if (!r.err) document.getElementById("qaName")?.focus();
+  } else if (e.target.dataset.rename) {
+    const id = e.target.dataset.rename;
+    const name = document.getElementById("rn-" + id).value.trim().replace(/\s+/g, " ");
+    if (!name) { S.rosterMsg = "Type a name first."; render(true); return; }
+    if (Object.entries(S.workers).some(([o, w]) => o !== id && w.name.toLowerCase() === name.toLowerCase())) { S.rosterMsg = `${name} is already on the roster.`; render(true); return; }
+    S.editName = null; S.rosterMsg = "";
+    if (name !== S.workers[id].name) saveWorker(id, { name }); else render();
+  } else if (e.target.id === "rosterAdd") {
+    const r = await createWorker(document.getElementById("raName").value, document.getElementById("raRole").value);
+    S.rosterMsg = r.err || "";
+    render();
+    if (!r.err) document.getElementById("raName")?.focus();
+  }
+});
+
+/* ---------- boot ---------- */
+async function load() {
+  const r = await relay("load", {});
+  // keep people added on this device whose save hasn't come back yet
+  for (const id of S.workerPending) if (S.workers[id]) r.workers[id] = S.workers[id];
+  S.workers = r.workers;
+  const next = {};
+  for (const [date, day] of Object.entries(r.days)) next[date] = mergeDay(day);
+  for (const date of [...S.pending.keys(), S.inflight?.date]) if (date && !next[date] && S.days[date]) next[date] = S.days[date];
+  S.days = next;
+  S.loaded.workers = S.loaded.days = true;
+  S.lastLoad = Date.now();
+}
+
+function viewPin(msg) {
+  return `<section class="panel pin">
+    <h2>Crew audit sheet</h2>
+    <p class="muted" style="margin:0">Enter the crew PIN to log trim and buck rates.</p>
+    <form id="pinForm" autocomplete="off">
+      <input type="password" id="pinInput" inputmode="numeric" aria-label="Crew PIN" autofocus>
+      <button class="btn primary" type="submit">Open audit sheet</button>
+    </form>
+    ${msg ? `<div class="msg err">${esc(msg)}</div>` : ""}
+  </section>`;
+}
+
+function lockOut(e) {
+  S.relayReady = false;
+  S.pin = "";
+  try { localStorage.removeItem("laborPin"); } catch (err) {}
+  setStatus("readonly", "Locked");
+  const msg = e?.code === "bad_pin" ? "That PIN didn't work. Check with your supervisor."
+    : e?.code === "locked" ? "Too many wrong PINs. Try again in an hour."
+    : e?.message && e.code !== "none" ? e.message : "";
+  main.innerHTML = viewPin(msg);
+  document.getElementById("pinInput")?.focus();
+}
+
+async function start() {
+  setStatus("loading", "Connecting…");
+  try {
+    await load();
+  } catch (e) {
+    if (e.code === "network" && S.relayReady) { setStatus("offline", "Offline — retrying"); return; }
+    if (e.code === "network") {
+      setStatus("offline", "Can't reach the audit data");
+      main.innerHTML = `<div class="empty"><strong>Can't reach the audit data</strong><span>Check the Wi-Fi or cell signal, then try again.</span><button class="btn primary" data-act="retry">Try again</button></div>`;
+      return;
+    }
+    lockOut(e);
+    return;
+  }
+  const first = !S.relayReady;
+  S.relayReady = true;
+  try { localStorage.setItem("laborPin", S.pin); } catch (e) {}
+  if (first) restorePending();
+  idleStatus();
+  render();
+  flush();
+}
+
+// pick up other supervisors' entries
+async function poll() {
+  if (!S.relayReady || document.visibilityState !== "visible") return;
+  try { await load(); idleStatus(); render(true); }  // true: keep half-typed names
+  catch (e) {
+    if (e?.code === "bad_pin" || e?.code === "locked") lockOut(e);
+    else setStatus("offline", S.pending.size ? "Offline — changes kept on this device" : "Offline — retrying");
+  }
+}
+setInterval(poll, 20000);
+document.addEventListener("visibilitychange", poll);
+window.addEventListener("online", () => { poll(); flush(); });
+
+try { S.pin = localStorage.getItem("laborPin") || ""; } catch (e) {}
+if (S.pin) start(); else lockOut({ code: "none" });
+</script>
+</body>
+</html>
